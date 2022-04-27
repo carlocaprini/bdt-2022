@@ -31,7 +31,9 @@ class StationHandler:
             json.dump(all_stations, f, indent=4)
 
     def list(self) -> List[Station]:
-        pass
+        with open(self._target_file, "r") as f:
+            raw_stations = json.load(f)
+            return [Station.from_repr(raw_station) for raw_station in raw_stations]
 
 
 class Station:
