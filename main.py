@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import sqlite3
 from datetime import datetime
 from time import sleep
 from typing import List
@@ -8,6 +9,70 @@ from os.path import exists
 
 import requests
 import json
+
+
+class StationHandlerSQLite:
+
+    def __init__(self, target_file: str = "stations.db") -> None:
+        super().__init__()
+        self._target_file = target_file
+
+        conn = sqlite3.connect(self._target_file)
+        cursor = conn.cursor()
+
+        # TODO should include all relevant columns for station attributes
+        query = '''CREATE TABLE IF NOT EXISTS "station" (
+            "id"	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
+            "name"	TEXT NOT NULL,
+            "address"	TEXT NOT NULL,
+            "station_id"	TEXT NOT NULL,
+            "bikes"	INTEGER NOT NULL,
+            "slots"	INTEGER NOT NULL,
+            "total_slots"	INTEGER NOT NULL,
+            "latitude"	NUMERIC NOT NULL,
+            "longitude"	NUMERIC NOT NULL,
+            "timestamp"	TEXT NOT NULL,
+            "city"	TEXT NOT NULL
+        )'''
+        cursor.execute(query)
+        conn.close()
+
+    def save(self, stations: List[Station]) -> None:
+        conn = sqlite3.connect(self._target_file)
+        cursor = conn.cursor()
+        # TODO adjust query
+        query = """INSERT into station 
+            (name, address, station_id, bikes, slots, total_slots, latitude, longitude, timestamp, city) 
+            VALUES 
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+
+        for station in stations:
+            cursor.execute(query, (
+                    station.name, station.address, station.station_id, station.bikes, station.slots,
+                    station.total_slots, station.latitude, station.longitude, station.measurement_dt.isoformat(), station.city
+                )
+           )
+        conn.commit()
+        conn.close()
+
+    def list(self) -> List[Station]:
+        stations: List[Station] = []
+        conn = sqlite3.connect(self._target_file)
+        cursor = conn.cursor()
+
+        query = "SELECT name, address, station_id, bikes, slots, total_slots, latitude, longitude, timestamp, city from station"
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        for name, address, station_id, bikes, slots, total_slots, latitude, longitude, timestamp , city in rows:
+            stations.append(
+                Station(
+                    station_id, name, address, bikes, slots, total_slots, latitude,
+                    longitude, datetime.fromisoformat(timestamp), city
+                )
+            )
+
+        conn.close()
+        return stations
 
 
 class StationHandler:
@@ -109,11 +174,20 @@ if __name__ == "__main__":
 
     arg_parser = argparse.ArgumentParser(description="This script is meant for supporting the manual boost of csv files.")
     arg_parser.add_argument("-s", "--sleep_interval", type=int, required=False, default=0, help="The sleep interval (expressed in seconds) between one collection and the successive one. Runs only once when set to 0.")
+    arg_parser.add_argument("-j", "--json_file", type=str, required=False, default=None, help="The name of the JSON file where data should be stored. If specified a JSON file will be used for storage.")
+    arg_parser.add_argument("--sqlite_db", type=str, required=False, default=None, help="The name of the SQLite database where data should be stored. If specified a SQLite database will be used for storage.")
     args = arg_parser.parse_args()
 
-    collection_datetime = datetime.now()
+    if args.json_file:
+        station_handler = StationHandler(target_file=args.json_file)
+    elif args.sqlite_db:
+        station_handler = StationHandlerSQLite(target_file=args.sqlite_db)
+    else:
+        print("Storage details are missing.")
+        exit(1)
 
     while True:
+        collection_datetime = datetime.now()
         new_stations = []
 
         for city, url in SOURCES_BY_CITY.items():
@@ -127,7 +201,6 @@ if __name__ == "__main__":
                 station = StationBuilder.from_trentino_data_hub_repr(raw_station, collection_datetime, city)
                 new_stations.append(station)
 
-        station_handler = StationHandler()
         station_handler.save(new_stations)
 
         if args.sleep_interval > 0:

@@ -8,6 +8,14 @@ This objective leverages the public data provided by the [Trentino Open Data Hub
 
 ## Assignments
 
+### Lesson #6
+
+The following should be completed.
+
+1. A second _station handler_ (let's call it `StationHandlerSQLite`) should be created in order to support the data management for a SQLite database.
+    
+    In order to make the handlers easily reusable and exchangeable, _abstract classes_ and _class inheritance_ could be taken advantage of.
+
 ### Lesson #5
 
 The following should be completed.
