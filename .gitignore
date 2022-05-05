@@ -1,3 +1,4 @@
 .idea
 venv
-stations.json
+*.json
+*.db
