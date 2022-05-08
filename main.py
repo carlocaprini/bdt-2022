@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sqlite3
+from abc import ABC, abstractmethod
 from datetime import datetime
 from time import sleep
 from typing import List
@@ -11,7 +12,31 @@ import requests
 import json
 
 
-class StationHandlerSQLite:
+class BasicStationHandler(ABC):
+    """
+    The usage of an abstract class allows to define a series of functionalities.
+    The one important thing to focus on when working with abstract classes is focusing on `what should happen` and
+    forget about the `how it should happen`.
+    This is the reason why methods in this class are abstract: only their signature is important (the what) while
+    their implementation (the how) is not taken care of.
+    An abstract class can not be instantiated.
+    """
+
+    @abstractmethod
+    def save(self, stations: List[Station]) -> None:
+        pass
+
+    @abstractmethod
+    def list(self) -> List[Station]:
+        pass
+
+
+class StationHandlerSQLite(BasicStationHandler):
+    """
+    This handler extends the abstract class :class:`BasicStationHandler <BasicStationHandler>`.
+    It implements the abstract class BasicStationHandler by defining the code required for defining `how things
+    should happen`.
+    """
 
     def __init__(self, target_file: str = "stations.db") -> None:
         super().__init__()
@@ -20,7 +45,6 @@ class StationHandlerSQLite:
         conn = sqlite3.connect(self._target_file)
         cursor = conn.cursor()
 
-        # TODO should include all relevant columns for station attributes
         query = '''CREATE TABLE IF NOT EXISTS "station" (
             "id"	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
             "name"	TEXT NOT NULL,
@@ -75,7 +99,12 @@ class StationHandlerSQLite:
         return stations
 
 
-class StationHandler:
+class StationHandler(BasicStationHandler):
+    """
+    This handler extends the abstract class :class:`BasicStationHandler <BasicStationHandler>`.
+    It implements the abstract class BasicStationHandler by defining the code required for defining `how things
+    should happen`.
+    """
 
     def __init__(self, target_file: str = "stations.json") -> None:
         super().__init__()
