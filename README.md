@@ -8,6 +8,15 @@ This objective leverages the public data provided by the [Trentino Open Data Hub
 
 ## Assignments
 
+### Lessons #7 & #8
+
+The following should be completed.
+
+1. A third _station handler_ (let's call it `StationHandlerMySQL`) should be created in order to support the data management for a MySQL database.
+
+This new handler should expose the same functionalities of the other existing handlers.
+In order to make this possible, the new handler will need to implement the `BasicStationHandler`.
+
 ### Lesson #6
 
 The following should be completed.

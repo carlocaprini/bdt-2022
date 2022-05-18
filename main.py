@@ -7,6 +7,7 @@ from datetime import datetime
 from time import sleep
 from typing import List
 from os.path import exists
+import mysql.connector
 
 import requests
 import json
@@ -29,6 +30,56 @@ class BasicStationHandler(ABC):
     @abstractmethod
     def list(self) -> List[Station]:
         pass
+
+
+class StationHandlerMySQL(BasicStationHandler):
+
+    def __init__(self, host: str, port: int, database: str, user: str, password: str) -> None:
+        self.connection = mysql.connector.connect(
+            host=host,
+            port=port,
+            database=database,
+            user=user,
+            password=password
+        )
+        self.connection.autocommit = True
+
+    def save(self, stations: List[Station]) -> None:
+        cursor = self.connection.cursor()
+        query = "INSERT into station (station_id, name, address, lat, lon, city, slots, bikes, total_slots, timestamp) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+
+        for station in stations:
+            cursor.execute(query, (
+                station.station_id,
+                station.name,
+                station.address,
+                station.latitude,
+                station.longitude,
+                station.city,
+                station.slots,
+                station.bikes,
+                station.total_slots,
+                station.measurement_dt.isoformat()
+            ))
+
+        cursor.close()
+
+    def list(self) -> List[Station]:
+        cursor = self.connection.cursor()
+        query = "SELECT station_id, name, address, lat, lon, city, slots, bikes, total_slots, timestamp from station"
+        cursor.execute(query)
+
+        stations = []
+        for station_id, name, address, lat, lon, city, slots, bikes, total_slots, timestamp in cursor:
+            stations.append(Station(
+                station_id,
+                name,
+                address, bikes, slots, total_slots, lat, lon, datetime.fromisoformat(timestamp), city
+            ))
+
+        cursor.close()
+
+        return stations
 
 
 class StationHandlerSQLite(BasicStationHandler):
@@ -205,12 +256,19 @@ if __name__ == "__main__":
     arg_parser.add_argument("-s", "--sleep_interval", type=int, required=False, default=0, help="The sleep interval (expressed in seconds) between one collection and the successive one. Runs only once when set to 0.")
     arg_parser.add_argument("-j", "--json_file", type=str, required=False, default=None, help="The name of the JSON file where data should be stored. If specified a JSON file will be used for storage.")
     arg_parser.add_argument("--sqlite_db", type=str, required=False, default=None, help="The name of the SQLite database where data should be stored. If specified a SQLite database will be used for storage.")
+    arg_parser.add_argument("--mysql_host", type=str, required=False, default=None, help="The MySQL host.")
+    arg_parser.add_argument("--mysql_port", type=int, required=False, default=3306, help="The MySQL port.")
+    arg_parser.add_argument("--mysql_user", type=str, required=False, default=None, help="The MySQL username.")
+    arg_parser.add_argument("--mysql_password", type=str, required=False, default=None, help="The MySQL password.")
+    arg_parser.add_argument("--mysql_database", type=str, required=False, default=None, help="The MySQL database.")
     args = arg_parser.parse_args()
 
     if args.json_file:
         station_handler = StationHandler(target_file=args.json_file)
     elif args.sqlite_db:
         station_handler = StationHandlerSQLite(target_file=args.sqlite_db)
+    elif args.mysql_host and args.mysql_user and args.mysql_user and args.mysql_password and args.mysql_database:
+        station_handler = StationHandlerMySQL(args.mysql_host, args.mysql_port, args.mysql_database, args.mysql_username, args.mysql_password)
     else:
         print("Storage details are missing.")
         exit(1)
